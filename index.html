@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dessin Collaboratif</title>
+  </head>
+
+  <style>
+    canvas {
+      border: 1px solid #000;
+    }
+
+    body {
+      cursor: crosshair;
+    }
+
+    #reset {
+      margin-top: 10px;
+      margin-left: 5px;
+      float: left;
+    }
+  </style>
+
+  <body>
+    <div class="container">
+      <canvas width="800" height="400" id="canvas"></canvas>
+      <input type="button" id="reset" value="reset" />
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module">
+      // Connexion au serveur
+      let socket = io.connect();
+
+      // Récupération du canvas et on donne son context
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Création d'une fonction pour récupérer la position de la souris, getBoundingClientRect nous permet de pouvoir avoir la position x et y par rapport à sa fenêtre d'affichage ici en l'occurence la fenêtre d'affichage et le canvas
+      function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+      }
+
+      // Fonction qui créer le "dessin" grâce à la position. strokeStyle définit la couleur et lineWidth l'épaisseur du dessins
+      function mouseMove(e) {
+        const mousePos = getMousePos(e);
+        ctx.lineTo(mousePos.x, mousePos.y);
+        ctx.stroke();
+        ctx.strokeStyle = "salmon";
+        ctx.lineWidth = 10;
+      }
+
+      // Lance l'événement sur le click enfoncé de la souris, à ne pas confondre avec l'event click
+      function draw() {
+        canvas.addEventListener("mousedown", (e) => {
+          e.preventDefault(); // enlève le comportement par défaut "drag and drop" de la souris
+          const mousePos = getMousePos(e); // position de la souris grâce à la fonction getMousePos
+          console.log(mousePos); // Log pour voir la position du clic de la souris
+          ctx.beginPath();
+          ctx.moveTo(mousePos.x, mousePos.y);
+
+          canvas.addEventListener("mousemove", mouseMove); // éxécute mouseMove qui permet de déssiner lorsqu'on bouge la souris
+          canvas.addEventListener("mouseup", () => {
+            // lors du relachement du boutton arrête l'évènement mousemove qui permet de déssiner
+            canvas.removeEventListener("mousemove", mouseMove);
+          });
+        });
+        console.log(draw);
+      }
+      draw();
+
+      // Envoie des données de la fonction Draw au serveur
+      socket.emit("canvas draw", function (draw) {
+        console.log("envoie de draw" + draw);
+      });
+      // Réception des données de la fonction Draw du serveur pour être bidirectionnelle je dois envoyer et reçevoir les mêmes données
+      socket.on("canvas draw", draw);
+
+      reset.addEventListener("click", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      });
+    </script>
+  </body>
+</html>
