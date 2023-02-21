@@ -1,27 +1,40 @@
-let express = require("express");
-let app = express();
-let http = require("http").Server(app);
-let io = require("socket.io")(http);
+const express = require("express");
+const app = express();
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
 
-// Création d'un get pour voir le afficher le fichier html
-app.get("/", function (req, res) {
+// Définition du dossier contenant les fichiers statiques
+app.use(express.static("public"));
+
+// Route pour la page HTML
+app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
-// On écoute les clients qui se connecte et déconnecte. on = j'écoute / emit = j'envoie
-io.on("connection", function (socket) {
+// On écoute les connexions des clients
+io.on("connection", (socket) => {
   console.log("Un utilisateur s'est connecté");
-  socket.on("disconnect", function () {
-    console.log("Un utilisateur s'est déconnecté");
+
+  // Écoute de l'événement "canvas draw"
+  socket.on("canvas draw", (data) => {
+    console.log("Données reçues : ", data);
+
+    // Envoi des données à tous les clients, y compris l'émetteur
+    io.emit("canvas draw", data);
   });
-  socket.on("canvas draw", function (draw) {
-    console.log("data reçu : " + draw);
-    // On renvoie la donnée de socket pour que les données s'échange de façon bidirectionnel je reçois je renvoie etc..
-    io.emit("canvas draw", draw);
+
+  socket.on("canvas reset", () => {
+    socket.broadcast.emit("canvas reset");
+  });
+
+
+  // Écoute de la déconnexion du client
+  socket.on("disconnect", () => {
+    console.log("Un utilisateur s'est déconnecté");
   });
 });
 
-//Lancement du serveur
-http.listen(3000, function () {
-  console.log("Server connecté sur le port 3000");
+// Lancement du serveur
+http.listen(3000, () => {
+  console.log("Le serveur est lancé sur le port 3000");
 });

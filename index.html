@@ -16,16 +16,53 @@
       cursor: crosshair;
     }
 
+    
     #reset {
       margin-top: 10px;
       margin-left: 5px;
-      float: left;
     }
+
+    .container {
+      text-align: center;
+    }
+
+    .black{
+      background-color: black;
+      width:30px;
+      height:20px;
+  }
+  .red{
+      background-color: red;
+      width:30px;
+      height:20px;
+  }
+  
+  .blue{
+      background-color: blue;
+      width:30px;
+      height:20px;
+  }
+
+  .green{
+    background-color: green;
+    width:30px;
+    height:20px;
+}
+
+
   </style>
 
   <body>
+
     <div class="container">
-      <canvas width="800" height="400" id="canvas"></canvas>
+      <canvas width="800" height="400" id="canvas"></canvas><br>
+
+      <button class="black" id="blackColor"></button>
+      <button class="red" id="redColor"></button>
+      <button class="green" id="greenColor"></button>
+      <button class="blue" id="blueColor"></button>
+      <br>
+
       <input type="button" id="reset" value="reset" />
     </div>
 
@@ -47,44 +84,81 @@
         };
       }
 
+      let color = "salmon";
+
       // Fonction qui créer le "dessin" grâce à la position. strokeStyle définit la couleur et lineWidth l'épaisseur du dessins
       function mouseMove(e) {
         const mousePos = getMousePos(e);
         ctx.lineTo(mousePos.x, mousePos.y);
         ctx.stroke();
-        ctx.strokeStyle = "salmon";
+        ctx.strokeStyle = color;
         ctx.lineWidth = 10;
+        socket.emit("canvas draw", { x: mousePos.x, y: mousePos.y, drawing: true, color: color });
       }
 
       // Lance l'événement sur le click enfoncé de la souris, à ne pas confondre avec l'event click
       function draw() {
         canvas.addEventListener("mousedown", (e) => {
-          e.preventDefault(); // enlève le comportement par défaut "drag and drop" de la souris
-          const mousePos = getMousePos(e); // position de la souris grâce à la fonction getMousePos
-          console.log(mousePos); // Log pour voir la position du clic de la souris
+          e.preventDefault();
+          const mousePos = getMousePos(e);
+          console.log(mousePos);
+      
           ctx.beginPath();
           ctx.moveTo(mousePos.x, mousePos.y);
-
-          canvas.addEventListener("mousemove", mouseMove); // éxécute mouseMove qui permet de déssiner lorsqu'on bouge la souris
-          canvas.addEventListener("mouseup", () => {
-            // lors du relachement du boutton arrête l'évènement mousemove qui permet de déssiner
-            canvas.removeEventListener("mousemove", mouseMove);
-          });
+      
+          canvas.addEventListener("mousemove", mouseMove);
+          drawing = true;
+          socket.emit("canvas draw", { x: mousePos.x, y: mousePos.y, drawing: true, color:color });
         });
-        console.log(draw);
+      
+        canvas.addEventListener("mouseup", () => {
+          canvas.removeEventListener("mousemove", mouseMove);
+          drawing = false; // Ajout de cette ligne pour mettre à jour la variable drawing
+          socket.emit("canvas draw", { drawing: false });
+        });
       }
       draw();
 
-      // Envoie des données de la fonction Draw au serveur
-      socket.emit("canvas draw", function (draw) {
-        console.log("envoie de draw" + draw);
-      });
+      let drawing = false;
+
       // Réception des données de la fonction Draw du serveur pour être bidirectionnelle je dois envoyer et reçevoir les mêmes données
-      socket.on("canvas draw", draw);
+      socket.on("canvas draw", (data) => {
+        if (drawing && data.drawing) {
+          ctx.lineTo(data.x, data.y);
+          ctx.strokeStyle = data.color; // Utilisation de la couleur reçue
+          ctx.lineWidth = 10;
+          ctx.stroke();
+        } else if (data.drawing) {
+          ctx.beginPath();
+          ctx.moveTo(data.x, data.y);
+          ctx.strokeStyle = data.color; // Utilisation de la couleur reçue
+          ctx.lineWidth = 10;
+          drawing = true;
+        } else {
+          drawing = false;
+        }
+      });
 
       reset.addEventListener("click", () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        socket.emit("canvas reset");
       });
+
+      // Réception de l'événement de reset et nettoyage du canvas
+      socket.on("canvas reset", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      });
+
+      var black = document.getElementById('blackColor');
+      black.addEventListener("click", function(){color="black"});
+      var red = document.getElementById('redColor');
+      red.addEventListener("click", function(){color="red"});
+      var green = document.getElementById('greenColor');
+      green.addEventListener("click", function(){color="green"});
+      var blue = document.getElementById('blueColor');
+      blue.addEventListener("click", function(){color="blue"});
+
+
     </script>
   </body>
 </html>
